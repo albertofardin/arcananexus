@@ -1,0 +1,54 @@
+# Environment variables declared in this file are automatically made available to Prisma.
+# See the documentation for more detail: https://pris.ly/d/prisma-schema#accessing-environment-variables-from-the-schema
+
+# Prisma supports the native connection string format for PostgreSQL, MySQL, SQLite, SQL Server, MongoDB and CockroachDB.
+# See the documentation for all the connection string options: https://pris.ly/d/connection-strings
+
+DIRECT_URL=
+DATABASE_URL=
+
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=
+
+NEXT_PUBLIC_POSTHOG_KEY=
+NEXT_PUBLIC_POSTHOG_HOST=
+
+# UploadThing (T-021, sezione documenti/Regolamenti): token dell'app da
+# https://uploadthing.com/dashboard -> API Keys. Letto automaticamente
+# dall'SDK server (`src/lib/uploadthing.ts`, `src/app/api/uploadthing/`).
+UPLOADTHING_TOKEN=
+
+# Brevo — email transazionali (T-046, recupero password). Chiave applicativa
+# distinta da `BREVO_API_KEY` (quella usata dall'MCP degli agenti per le
+# campagne marketing, vedi `.mcp.json`): stesso account Brevo, chiave separata
+# così si può revocare/ruotare senza toccare la config degli agenti. Letta da
+# `src/lib/email/client.ts`.
+BREVO_TRANSACTIONAL_API_KEY=
+# Mittente verificato in Brevo per le email transazionali.
+BREVO_SENDER_EMAIL=
+BREVO_SENDER_NAME=Arcana Domine
+
+# Web Push (VAPID) — notifiche push mobile/PWA. Genera una coppia con
+# `bunx web-push generate-vapid-keys`. La chiave pubblica è NEXT_PUBLIC_
+# (va al client per la subscription), la privata resta solo server-side.
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
+
+# OpenTelemetry (src/lib/instrumentation/node.ts) — nome del servizio nei log
+# inoltrati a PostHog. Opzionale: se assente usa "arcana-domine".
+OTEL_SERVICE_NAME=
+
+# react-scan (src/app/layout.tsx) — overlay di debug dei re-render. Attivo
+# sempre in sviluppo; per abilitarlo anche in una build di produzione/preview
+# impostare "true". Opzionale.
+ENABLE_REACT_SCAN=
+
+# PayPal (iscrizione agli eventi a pagamento) — credenziali REST app da
+# https://developer.paypal.com/dashboard/applications (Sandbox per i test,
+# Live per la produzione). PAYPAL_ENV: "sandbox" (default) | "live".
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+# Stesso valore di PAYPAL_CLIENT_ID (serve al browser per caricare l'SDK).
+NEXT_PUBLIC_PAYPAL_CLIENT_ID=
+PAYPAL_ENV=sandbox

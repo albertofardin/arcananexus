@@ -1,0 +1,10 @@
+# Ignore artifacts:
+build
+coverage
+
+components/ui/**/*
+hooks/use-mobile.tsx
+hooks/use-toast.ts
+
+package.json
+pnpm-lock.yaml

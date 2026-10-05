@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ─────────────────────────────────────────────────────────────────────────
+     Tema: due assi indipendenti applicati come data-* su <html> (vedi
+     src/app/themes.ts).
+       data-color    → tinta primaria (--color), tutto il resto deriva
+                       (proprietà della campagna, o default fuori da una
+                       campagna — vedi CampaignThemeSync)
+       data-texture  → trama su HeroBanner/SidePanel, o nessuna (idem, di
+                       campagna)
+     La tipografia della dashboard è fissa (Hanken Grotesk), non è un asse configurabile.
+     Il tema è unico (chiaro): non esiste un asse di modalità.
+     I default di :root sono solo un fallback pre-idratazione: <html> imposta
+     sempre esplicitamente data-color/data-texture (vedi src/app/layout.tsx).
+     ───────────────────────────────────────────────────────────────────────── */
+  :root {
+    /* Impedisce ai browser (es. "Force Dark" di Chrome Android) di
+       auto-invertire i colori: il sito è deliberatamente solo chiaro. */
+    color-scheme: only light;
+
+    /* ── Costante per tutti i temi ── */
+    --radius: 0.4rem;
+
+    /* ── Superfici (tema unico: chiaro) ── */
+    --bg: #f7f3ec;
+    --typography: #2d1a0a;
+    --card: #fffdf9;
+    --fail: #dc2626;
+    --info: #2563eb;
+    --succ: #059669;
+    --warn: #ffcd48;
+
+    --button: #141e41;
+    --button-bg: #ffffff;
+
+    /* ── Pivot di colore (default: rosso cremisi) ── */
+    --color: #a4161a;
+
+    /* ── Font della dashboard (fisso: Hanken Grotesk) ── */
+    --font-family: var(--font-hanken-grotesk), sans-serif;
+
+    /* ── Pannello laterale: sempre scuro, tinto dal colore così le texture
+       (blend screen) restano leggibili in qualsiasi modalità. Il testo sopra
+       è bianco fisso (letterale "white"/#fff nei consumer): non serve una
+       variabile dedicata perché non varia mai per tema ── */
+    --panel: color-mix(in srgb, var(--color) 14%, #14110f);
+    --panel-accent: color-mix(in srgb, var(--color) 60%, var(--button-bg));
+
+    /* ── Texture del menu laterale (default: nessuna, gli assi la accendono) ── */
+    --panel-texture: none;
+
+    /* ── Tailwind aliases ── */
+    --primary: var(--color);
+    --fg: var(--typography);
+
+    /* ── Derivati dai pivot (validi per chiaro e scuro) ── */
+    --muted-bg: color-mix(in srgb, var(--color) 10%, var(--bg));
+    --muted-fg: color-mix(in srgb, var(--typography) 50%, var(--bg));
+    --accent: color-mix(in srgb, var(--button) 8%, var(--button-bg));
+    --border: color-mix(in srgb, var(--color) 22%, var(--bg));
+    --input: #f8f8f8;
+  }
+
+  /* ── ASSE COLORE (solo la tinta primaria; il resto deriva) ── */
+
+  :root[data-color="crimson"] {
+    --color: #a4161a;
+  }
+  :root[data-color="orange"] {
+    --color: #e8590c;
+  }
+  :root[data-color="gold"] {
+    --color: #c89116;
+  }
+  :root[data-color="turquoise"] {
+    --color: #0f9b8e;
+  }
+  :root[data-color="cobalt"] {
+    --color: #0f62fe;
+  }
+  :root[data-color="indigo"] {
+    --color: #5b5bef;
+  }
+  :root[data-color="amethyst"] {
+    --color: #7c3aed;
+  }
+  :root[data-color="silver"] {
+    --color: #9ca3af;
+  }
+
+  /* ── ASSE TEXTURE ──────────────────────────────────────────────
+     Ogni opzione corrisponde a un file in public/textures/ (vedi
+     themeTextures in themes.ts). Il pannello laterale è sempre scuro,
+     quindi il blend screen resta leggibile per tutte le trame. */
+
+  :root[data-texture="texture_cyberpunk"] {
+    --panel-texture: url("/textures/cyberpunk.webp");
+  }
+  :root[data-texture="texture_fallout"] {
+    --panel-texture: url("/textures/fallout.webp");
+  }
+  :root[data-texture="texture_fantasy"] {
+    --panel-texture: url("/textures/fantasy.webp");
+  }
+  :root[data-texture="texture_steampunk"] {
+    --panel-texture: url("/textures/steampunk.webp");
+  }
+}
+
+html,
+body,
+#root,
+#storybook-root {
+  margin: 0;
+  padding: 0 !important;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  font-family: var(--font-family);
+}
+
+.arcanadesign-font {
+  font-family: var(--font-family);
+}

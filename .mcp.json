@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "neon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neondatabase/mcp-server-neon",
+        "start",
+        "${NEON_API_KEY}"
+      ]
+    },
+    "brevo": {
+      "command": "npx",
+      "args": ["-y", "@houtini/brevo-mcp@3.0.6"],
+      "env": {
+        "BREVO_API_KEY": "${BREVO_API_KEY}",
+        "BREVO_BASE_URL": "${BREVO_BASE_URL:-https://api.brevo.com/v3}"
+      }
+    }
+  }
+}

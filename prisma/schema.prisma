@@ -1,0 +1,861 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                        String                  @id
+  name                      String
+  email                     String
+  emailVerified             Boolean
+  image                     String?
+  createdAt                 DateTime
+  updatedAt                 DateTime
+  isDirettivo               Boolean                 @default(false)
+  isSviluppo                Boolean                 @default(false)
+  status                    UserStatus              @default(active)
+  role                      String?
+  banned                    Boolean?                @default(false)
+  banReason                 String?
+  banExpires                DateTime?
+  // Preferenza profilo (T-0xx, email notifiche): se `false`, il fan-out
+  // email di `notifyEmail` in `notification.repository.ts` salta l'invio
+  // per questo utente. Non tocca le notifiche push né quelle in-app.
+  emailNotificationsEnabled Boolean                 @default(true)
+  sessions                  Session[]
+  accounts                  Account[]
+  PersonalData              PersonalData?
+  Membership                Membership[]
+  CharacterData             CharacterData[]
+  GrantedData               CharacterData[]         @relation("CharacterDataGrantedBy")
+  XpUpdates                 XpTransaction[]         @relation("XpTransactionUpdatedBy")
+  Character                 Character[]
+  Booking                   Booking[]
+  Payment                   Payment[]
+  Grant                     Grant[]
+  // Relazione inversa di `Action.authorUserId` (T-0xx): missive "a nome del
+  // master" attribuite a questo utente — vedi il commento su `Action`.
+  AuthoredActions           Action[]
+  notifications             Notification[]
+  SupportTicket             SupportTicket[]
+  SupportMessage            SupportMessage[]
+  pushSubscriptions         PushSubscription[]
+  CharacterTalentUnlocks    CharacterTalentUnlock[]
+  Vouchers                  Voucher[]
+
+  @@unique([email])
+  @@unique([name])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime
+  updatedAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model PersonalData {
+  id            Int      @id @default(autoincrement())
+  userId        String   @unique
+  firstName     String
+  lastName      String
+  ssn           String
+  address       String
+  dateOfBirth   DateTime
+  placeOfBirth  String
+  phone         String?
+  nationality   String?
+  guardianName  String?
+  guardianPhone String?
+  guardianEmail String?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "personalDataUserId")
+}
+
+model Membership {
+  id        Int      @id @default(autoincrement())
+  startDate DateTime
+  endDate   DateTime
+  year      Int
+  userId    String
+  paymentId Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year])
+}
+
+model Organization {
+  id          Int        @id @default(autoincrement())
+  name        String
+  slug        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  campaigns   Campaign[]
+  events      Event[]
+
+  @@index([slug], map: "OrganizationSlug")
+}
+
+model Campaign {
+  id             Int             @id @default(autoincrement())
+  name           String
+  slug           String
+  description    String?
+  type           CampaignType    @default(campaign)
+  visibility     Boolean         @default(true)
+  organizationId Int             @default(1)
+  logo           String?
+  logoKey        String?
+  cover          String?
+  coverKey       String?
+  color          CampaignColor   @default(cobalt)
+  texture        CampaignTexture @default(none)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dataTypes      DataType[]
+  events         Event[]
+  characters     Character[]
+  grants         Grant[]
+  feature        Feature[]
+  images         CampaignImage[]
+  notifications  Notification[]
+  printLayouts   PrintLayout[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId], map: "CampaignOrganizationId")
+  @@index([slug], map: "CampaignSlug")
+}
+
+// Layout di stampa dell'Area Stampa (Gestione Campagna): `template` è un
+// template pdfme (pagina bianca in mm + campi posizionati). I campi il cui
+// nome coincide con una chiave del catalogo (`src/lib/print/fields.ts`)
+// vengono riempiti coi dati del personaggio/voce, gli altri stampano il
+// loro contenuto fisso (loghi, titoli, testo libero). I layout dei
+// cartellini (`reference`) non sono legati a un `DataType`: lo stesso layout
+// si applica alle voci di qualunque tipo di dato. `sheet` decide se le
+// schede generate vengono affiancate su un foglio A4/A3 o stampate una per
+// pagina alla loro dimensione; con A4/A3 `sheetGap` è la distanza tra le
+// schede e `sheetMargin` quella dal bordo del foglio (mm).
+model PrintLayout {
+  id          Int               @id @default(autoincrement())
+  campaignId  Int
+  source      PrintLayoutSource
+  name        String
+  template    Json
+  sheet       PrintSheet        @default(none)
+  sheetGap    Float             @default(3)
+  sheetMargin Float             @default(5)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  campaign    Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId], map: "PrintLayoutCampaignId")
+}
+
+model CampaignImage {
+  id         Int      @id @default(autoincrement())
+  campaignId Int
+  url        String
+  key        String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId], map: "CampaignImageCampaignId")
+}
+
+model DataType {
+  id            Int                   @id @default(autoincrement())
+  campaignId    Int
+  name          String
+  kind          DataTypeKind          @default(generic)
+  description   String?
+  cardinality   DataCardinality?
+  assignability DataTypeAssignability @default(none)
+  mandatory     Boolean               @default(false)
+  sidebarShow   Boolean               @default(false)
+  sidebarOrder  Int?
+  icon          String?
+  renderAs      DataTypeRender        @default(catalog)
+  visibility    DataVisibility        @default(visible)
+  campaign      Campaign              @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  referenceData ReferenceData[]
+  characterData CharacterData[]
+
+  @@index([campaignId], map: "DataTypeCampaignId")
+}
+
+model ReferenceData {
+  id             Int                     @id @default(autoincrement())
+  dataTypeId     Int
+  name           String
+  description    String?
+  flags          Json?
+  visibility     DataVisibility          @default(hidden)
+  fileUrl        String?
+  fileKey        String?
+  externalId     String?
+  order          Int                     @default(0)
+  dataType       DataType                @relation(fields: [dataTypeId], references: [id], onDelete: Cascade)
+  instances      CharacterData[]
+  xpTransactions XpTransaction[]
+  requirements   DataRequirement[]       @relation("DataRequirementDefinition")
+  requiredBy     DataRequirement[]       @relation("DataRequirementRequiredDefinition")
+  talentUnlocks  CharacterTalentUnlock[]
+
+  @@index([dataTypeId], map: "ReferenceDataDataTypeId")
+}
+
+model CharacterData {
+  id                Int            @id @default(autoincrement())
+  characterId       Int?
+  userId            String?
+  referenceDataId   Int
+  dataTypeId        Int
+  value             Json?
+  visibility        DataVisibility @default(hidden)
+  grantedById       String?
+  grantedByOverride Boolean        @default(false)
+  actionId          Int?
+  externalId        String?
+  createdAt         DateTime       @default(now())
+  referenceData     ReferenceData  @relation(fields: [referenceDataId], references: [id], onDelete: Cascade)
+  dataType          DataType       @relation(fields: [dataTypeId], references: [id], onDelete: Cascade)
+  character         Character?     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  user              User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy         User?          @relation("CharacterDataGrantedBy", fields: [grantedById], references: [id])
+  action            Action?        @relation(fields: [actionId], references: [id])
+
+  @@index([characterId], map: "CharacterDataCharacterId")
+  @@index([userId], map: "CharacterDataUserId")
+  @@index([referenceDataId], map: "CharacterDataReferenceDataId")
+  @@index([dataTypeId], map: "CharacterDataDataTypeId")
+}
+
+model DataRequirement {
+  id                   Int             @id @default(autoincrement())
+  definitionId         Int
+  requiredDefinitionId Int
+  type                 RequirementType
+  groupId              Int?
+  definition           ReferenceData   @relation("DataRequirementDefinition", fields: [definitionId], references: [id], onDelete: Cascade)
+  requiredDefinition   ReferenceData   @relation("DataRequirementRequiredDefinition", fields: [requiredDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, requiredDefinitionId, type])
+  @@index([definitionId], map: "DataRequirementDefinitionId")
+  @@index([requiredDefinitionId], map: "DataRequirementRequiredDefinitionId")
+}
+
+model XpTransaction {
+  id                Int            @id @default(autoincrement())
+  characterId       Int
+  amount            Int
+  reason            XpReason
+  referenceDataId   Int?
+  actionId          Int?
+  sourceCharacterId Int?
+  updatedById       String?
+  note              String?
+  createdAt         DateTime       @default(now())
+  character         Character      @relation("XpTransactionCharacter", fields: [characterId], references: [id], onDelete: Cascade)
+  sourceCharacter   Character?     @relation("XpTransactionSourceCharacter", fields: [sourceCharacterId], references: [id], onDelete: SetNull)
+  referenceData     ReferenceData? @relation(fields: [referenceDataId], references: [id])
+  action            Action?        @relation(fields: [actionId], references: [id])
+  updatedBy         User?          @relation("XpTransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([characterId], map: "XpTransactionCharacterId")
+  @@index([sourceCharacterId], map: "XpTransactionSourceCharacterId")
+}
+
+model Character {
+  id                  Int                     @id @default(autoincrement())
+  campaignId          Int
+  userId              String
+  type                CharacterType           @default(pg)
+  name                String
+  avatar              String?
+  background          String?
+  creationDate        DateTime                @default(now())
+  approvalDate        DateTime?
+  deathDate           DateTime?
+  parkDate            DateTime?
+  playerNotes         String?
+  masterPublicNotes   String?
+  masterNotes         String?
+  downtimePoints      Int                     @default(0)
+  missivePoints       Int                     @default(0)
+  // Quota di `downtimePoints`/`missivePoints` guadagnata da talenti con
+  // flag `isDowntimePointBonus`/`isMissivePointBonus` (uno per talento
+  // posseduto con quel flag): sommata al massimale configurato sulla
+  // Feature quando il master fa "Reset punti downtime/missive", così il
+  // reset non cancella il bonus del personaggio.
+  downtimePointsBonus Int                     @default(0)
+  missivePointsBonus  Int                     @default(0)
+  lastUpdateDate      DateTime?               @default(now())
+  characterData       CharacterData[]
+  xpTransactions      XpTransaction[]         @relation("XpTransactionCharacter")
+  xpRecoveredBy       XpTransaction[]         @relation("XpTransactionSourceCharacter")
+  bookings            Booking[]
+  inbox               Message[]               @relation("from")
+  outbox              Message[]               @relation("to")
+  campaign            Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions             Action[]
+  talentUnlocks       CharacterTalentUnlock[]
+
+  @@index([campaignId], map: "CharacterCampaignId")
+  @@index([userId], map: "CharacterUserId")
+}
+
+// Eccezione di visibilità per-personaggio (T-0xx, "occhio" master in
+// ModalTalents): a differenza di `ReferenceData.visibility`/ degli archi
+// `visibleWith` — campagna-wide, valutati da `filterVisible` per TUTTI i
+// personaggi — questa riga sblocca un singolo talento-catalogo
+// altrimenti `hidden` SOLO per questo personaggio, senza assegnarglielo (il
+// giocatore deve comunque "Aggiungere" e pagare XP: non è una concessione,
+// vedi `CharacterData`/`assignReferenceDataToCharacter` per quella). Ha senso
+// solo per `ReferenceData` di `DataType.kind: talent` (imposto lato
+// applicativo dalla route, non a schema — stesso pattern di
+// `DataRequirement`, che non vincola a schema i `kind` compatibili).
+model CharacterTalentUnlock {
+  id              Int           @id @default(autoincrement())
+  characterId     Int
+  referenceDataId Int
+  unlockedById    String
+  createdAt       DateTime      @default(now())
+  character       Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  referenceData   ReferenceData @relation(fields: [referenceDataId], references: [id], onDelete: Cascade)
+  unlockedBy      User          @relation(fields: [unlockedById], references: [id])
+
+  @@unique([characterId, referenceDataId])
+  @@index([characterId], map: "CharacterTalentUnlockCharacterId")
+  @@index([referenceDataId], map: "CharacterTalentUnlockReferenceDataId")
+}
+
+// `campaignId` nullo = evento dell'associazione non legato a una campagna
+// (piscinata, pranzo associativo...): per questo l'appartenenza al tenant è
+// sempre `organizationId`, mai dedotta dalla campagna.
+// Semantica date: `dateEventStart`/`dateEventEnd` = inizio/fine evento;
+// `datePublicationStart`/`datePublicationEnd` = apertura/chiusura iscrizioni (l'evento è
+// visibile ai giocatori dall'apertura iscrizioni).
+model Event {
+  id                   Int                  @id @default(autoincrement())
+  organizationId       Int
+  campaignId           Int?
+  name                 String
+  place                String?
+  image                String?
+  description          String
+  datePublicationStart DateTime
+  datePublicationEnd   DateTime
+  dateEventStart       DateTime
+  dateEventEnd         DateTime
+  price                Decimal              @default(0)
+  // `hidden`: l'evento lo vedono solo staff/gestori (per motivi organizzativi).
+  visibility           DataVisibility       @default(visible)
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign             Campaign?            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  bookings             Booking[]
+  socials              SocialLink[]
+  paymentOptions       EventPaymentOption[]
+
+  @@index([campaignId], map: "EventCampaignId")
+  @@index([organizationId], map: "EventOrganizationId")
+}
+
+model SocialLink {
+  link    String  @id
+  icon    String?
+  eventId Int
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+// Quota alternativa opzionale per un evento (es. "quota ridotta bambini"):
+// in fase di iscrizione l'utente sceglie `Event.price` oppure una di queste,
+// mai entrambe.
+model EventPaymentOption {
+  id      Int     @id @default(autoincrement())
+  eventId Int
+  label   String
+  amount  Decimal
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId], map: "EventPaymentOptionEventId")
+}
+
+model EventPrice {
+  id             Int                 @id @default(autoincrement())
+  beforeDate     DateTime?
+  priceType      EventPriceType
+  priceCondition EventPriceCondition
+  value          Decimal
+  bookings       Booking[]
+}
+
+model Booking {
+  id                 Int          @id @default(autoincrement())
+  userId             String
+  eventId            Int
+  characterId        Int?
+  paymentId          Int?         @unique
+  couponId           String?      @unique
+  price              Int?
+  // Etichetta della quota alternativa scelta (copia: le `EventPaymentOption`
+  // vengono ricreate a ogni modifica dell'evento). Null = quota base.
+  paymentOptionLabel String?
+  present            Boolean?
+  // Nota libera e opzionale del giocatore in fase di iscrizione (es. "mi serve una spada", "solo gluten free").
+  note               String?
+  // Iscritto gratuitamente da un master (staff della campagna), senza pagamento.
+  addedByStaff       Boolean      @default(false)
+  bookingDate        DateTime     @default(now())
+  appliedPrices      EventPrice[]
+  paymentDate        DateTime?
+
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  payment   Payment?   @relation(fields: [paymentId], references: [id])
+  coupon    Coupon?    @relation(fields: [couponId], references: [id])
+
+  @@unique([eventId, userId])
+  @@index([eventId], map: "BookingEventId")
+  @@index([characterId], map: "BookingCharacterId")
+  @@index([userId], map: "BookingUserId")
+}
+
+model Payment {
+  id          Int       @id @default(autoincrement())
+  paymentData Json
+  value       Decimal
+  createdAt   DateTime  @default(now())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+  coupons     Coupon[]
+
+  @@index([userId], map: "PaymentUserId")
+}
+
+model Coupon {
+  id        String    @id @default(uuid())
+  value     Decimal
+  usedDate  DateTime?
+  paymentId Int
+  booking   Booking?
+  payment   Payment   @relation(fields: [paymentId], references: [id])
+}
+
+// Saldo buoni: registro a movimenti, saldo = somma di `amount` delle righe
+// dell'anno associativo corrente. Dura quanto la tessera: con la tessera
+// dell'anno dopo le righe dell'anno precedente non contano più (nessun job di
+// azzeramento). Accrediti (`grant` dal direttivo, `refund` da disiscrizione a
+// un evento pagato) positivi, utilizzi (`payment`) negativi; il saldo non va
+// mai sotto zero (verificato in transazione serializzabile, vedi
+// `spendVoucher`).
+model Voucher {
+  id          Int           @id @default(autoincrement())
+  userId      String
+  year        Int
+  amount      Decimal
+  reason      VoucherReason
+  // `refund`/`payment`: evento di riferimento.
+  eventId     Int?
+  // `grant`: membro del direttivo che ha creato il buono.
+  createdById String?
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, year])
+}
+
+enum VoucherReason {
+  grant
+  refund
+  payment
+}
+
+model Message {
+  id           Int           @id @default(autoincrement())
+  messageType  String
+  fromId       Int
+  toId         Int
+  title        String        @default("")
+  text         String
+  sentDate     DateTime      @default(now())
+  receivedDate DateTime?
+  readDate     DateTime?
+  status       MessageStatus @default(sent)
+
+  from Character @relation("from", fields: [fromId], references: [id], onDelete: NoAction)
+  to   Character @relation("to", fields: [toId], references: [id], onDelete: NoAction)
+
+  @@index([fromId], map: "MessageFromId")
+  @@index([toId], map: "MessageToId")
+}
+
+model Action {
+  id           Int      @id @default(autoincrement())
+  // Opzionale (T-0xx, missive "a nome del master"/`FT_MISSIVE` senza un PG
+  // reale come mittente): `null` solo per azioni dichiarate direttamente dal
+  // master via `POST /api/campaigns/[campaignSlug]/actions`, mai per azioni
+  // dichiarate da o per conto di un PG.
+  characterId  Int?
+  featureId    Int
+  creationDate DateTime @default(now())
+  actionData   Json?
+  // Autore reale (T-0xx, tab "Inviate" per un viewer master): valorizzato
+  // SOLO per una missiva "a nome del master" (`characterId: null`, ramo
+  // reale/"Campo libero" — MAI per una Comunicazione, che non ha un
+  // concetto di "inviata da un master specifico", e MAI per una missiva
+  // scritta da un PG reale, che ha già il suo autore in `characterId`).
+  // Colonna reale (non dentro `actionData` Json) per evitare qualunque
+  // rischio di spoofing lato client: `actionData` è (in parte) scrivibile
+  // dal client via lo schema Zod dell'azione, mentre questo campo è
+  // impostato SOLO server-side dalla route (`session.user.id`), mai letto
+  // dal payload in ingresso. `onDelete: SetNull` perché è un campo
+  // informativo/di attribuzione, non deve mai bloccare né cascare la
+  // cancellazione di uno `User`.
+  authorUserId String?
+
+  feature        Feature         @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  character      Character?      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  author         User?           @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  characterData  CharacterData[]
+  xpTransactions XpTransaction[]
+
+  @@index([characterId], map: "ActionCharacterId")
+}
+
+model FeatureType {
+  id            Int    @id @default(autoincrement())
+  featureName   String
+  functionName  String @unique
+  actionSchema  Json
+  featureSchema Json
+
+  feature Feature[]
+}
+
+model Feature {
+  id            Int     @id @default(autoincrement())
+  featureTypeId Int
+  campaignId    Int
+  featureData   Json
+  active        Boolean @default(true)
+  // Sospensione lato PG (T-0xx): a differenza di `active` (disattiva la
+  // funzione per TUTTI, staff incluso, e la nasconde da `getFeatureByFunctionName`
+  // con `activeOnly: true`), `paused` blocca SOLO i PG dal dichiarare nuove
+  // azioni/risposte — headmaster/master/supporter continuano a operare
+  // normalmente (enforced dalle route di esecuzione azioni, mai qui a
+  // livello di schema). Si applica solo a `missive`/`downtime` (le uniche
+  // feature con un concetto di "invio PG" da poter sospendere), ma resta un
+  // campo generico sul modello per simmetria con `active`.
+  paused        Boolean @default(false)
+
+  actions     Action[]
+  featureType FeatureType @relation(fields: [featureTypeId], references: [id], onDelete: Cascade)
+  campaign    Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([featureTypeId, campaignId])
+  @@index([campaignId], map: "ActionCampaignId")
+}
+
+model Grant {
+  userId     String
+  campaignId Int
+  role       Role
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, campaignId])
+}
+
+// Pannello notifiche stile Facebook (T-0xx, FASE 1 backend): tabella dedicata
+// (non calcolata al volo) perché il downtime non ha oggi alcun concetto di
+// "letto" da cui derivarla. `entityId` è l'unico riferimento salvato — mai un
+// nome/oggetto/mittente denormalizzato qui, sempre risolto LIVE a lettura
+// (`listNotificationsForUser` in `notification.repository.ts`), stesso
+// principio già seguito ovunque nel repository (es. `MissiveWithSender`
+// risolve nome/avatar del PG al momento della lettura, mai da uno snapshot).
+// Semantica di `entityId` per `type`:
+// - `missive`: `Action.id` della missiva/risposta appena creata (radice o
+//   risposta indifferentemente, incluso il caso Comunicazione — nessun
+//   `NotificationType` dedicato per la Comunicazione, distinta a lettura via
+//   `isCommunicationMissive(action.actionData)`).
+// - `character_status`: `Character.id` del personaggio appena creato.
+// - `downtime`: `Action.id` dell'azione downtime appena creata.
+// - `support_new`/`support_reply`: `SupportTicket.id` (mai un
+//   `SupportMessage.id`) — il "Supporto" (T-0xx) non è campaign-scoped,
+//   quindi `campaignId` resta `null` per queste due, a differenza dei tre
+//   tipi sopra dove è sempre valorizzato (vedi `listNotificationsForUser`,
+//   che risolve `entityId` in un `SupportTicket` invece di fare il join con
+//   `Campaign`).
+model Notification {
+  id         Int              @id @default(autoincrement())
+  userId     String
+  campaignId Int?
+  type       NotificationType
+  entityId   Int
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([campaignId])
+}
+
+enum NotificationType {
+  missive
+  character_status
+  downtime
+  support_new
+  support_reply
+  // Iscrizione gratuita a un evento da parte di un master (`entityId` = `Event.id`).
+  event_booking
+  // Buono ricevuto dal direttivo (`entityId` = `Voucher.id`, nessuna campagna).
+  voucher
+}
+
+// Subscription Web Push per un dispositivo/browser (T-0xx, notifiche push
+// mobile — PWA installata da `manifest.ts`): un utente può avere più
+// subscription attive (più dispositivi/browser). `endpoint` è la chiave
+// naturale assegnata dal servizio push del browser (FCM, Mozilla, ecc.),
+// unica per dispositivo — un nuovo `subscribe()` con lo stesso endpoint
+// aggiorna le chiavi invece di duplicare la riga (vedi `saveSubscription` in
+// `pushSubscription.repository.ts`).
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// "Supporto" (T-0xx): ticket di assistenza aperti da un utente qualunque
+// verso il team di sviluppo (`User.isSviluppo`), non legati a una campagna —
+// a differenza di tutto il resto del modello (Organization → Campaign →
+// ...), vive quindi fuori da quella gerarchia, stesso livello di `User`
+// stesso. Nessun concetto di "letto" qui (a differenza di `Notification`):
+// lo stato di avanzamento è interamente rappresentato da `status`.
+model SupportTicket {
+  id        Int                 @id @default(autoincrement())
+  userId    String
+  subject   String
+  status    SupportTicketStatus @default(in_attesa)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_ticket")
+}
+
+enum SupportTicketStatus {
+  in_attesa
+  in_lavorazione
+  risolta
+  chiusa
+}
+
+// Messaggio di un thread `SupportTicket` (autore = utente che ha aperto il
+// ticket o un membro dello staff che risponde, mai distinti da un flag
+// proprio: `authorId` risolve a `User.isSviluppo` a lettura, stesso
+// principio "risolto live" di `Notification`, non uno snapshot salvato qui).
+model SupportMessage {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_message")
+}
+
+enum Role {
+  head_master
+  master
+  supporter
+}
+
+enum UserStatus {
+  active
+  banned
+}
+
+enum PrintLayoutSource {
+  character
+  reference
+  free
+}
+
+enum PrintSheet {
+  none
+  a4_portrait
+  a4_landscape
+  a3_portrait
+  a3_landscape
+}
+
+enum CampaignType {
+  campaign
+  oneShot
+}
+
+// Rispecchia `ThemeColor` (src/app/themes.ts): tinta primaria della
+// campagna, usata nella pagina pubblica di presentazione.
+enum CampaignColor {
+  crimson
+  orange
+  gold
+  turquoise
+  cobalt
+  indigo
+  amethyst
+  silver
+}
+
+// Rispecchia `ThemeTexture` (src/app/themes.ts): trama decorativa mostrata su
+// HeroBanner/SidePanel per le pagine di questa campagna, o nessuna.
+enum CampaignTexture {
+  none
+  texture_cyberpunk
+  texture_fallout
+  texture_fantasy
+  texture_steampunk
+}
+
+enum CharacterType {
+  pg
+  png
+}
+
+enum MessageStatus {
+  sent
+  delivered
+  read
+  lost
+  deleted
+}
+
+enum DataVisibility {
+  hidden
+  visible
+}
+
+enum DataTypeKind {
+  generic
+  origins
+  assignable
+  talent
+}
+
+enum DataTypeAssignability {
+  none
+  always
+  creationOnly
+  masterOnly
+}
+
+enum DataCardinality {
+  single
+  multi
+}
+
+enum RequirementType {
+  requires
+  blocks
+  visibleWith
+  grants
+}
+
+enum DataTypeRender {
+  catalog
+  files
+  pages
+}
+
+enum XpReason {
+  initialGrant
+  purchase
+  refund
+  deathRecovery
+  update
+  removal
+}
+
+enum EventPriceType {
+  fixed
+  percentageDiscount
+  fixedDiscount
+}
+
+enum EventPriceCondition {
+  beforeDate
+  firstEvent
+  firstEventCampaign
+  under25
+}

@@ -1,0 +1,20 @@
+[build]
+  command = "bunx prisma generate && bunx prisma migrate deploy && bun run build"
+  publish = ".next"
+  ignore  = "bash scripts/should-deploy.sh"
+
+[build.environment]
+  NODE_VERSION = "24"
+  BUN_VERSION  = "1.2"
+  # ponytail: BETTER_AUTH_SECRET finisce (legittimamente) nel bundle
+  # server-side per Better Auth; falso positivo dello scanner Netlify.
+  SECRETS_SCAN_OMIT_KEYS = "BETTER_AUTH_SECRET"
+  # ponytail: la cache Turbopack traccia i valori delle env (es. PAYPAL_CLIENT_SECRET,
+  # letto solo server-side a runtime); non è output servito.
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[plugins]]
+  package = "/netlify/plugins/neon-branch"

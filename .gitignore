@@ -1,0 +1,69 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.vscode/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-fail.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env_template
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# prisma
+prisma/dev.db*
+
+*storybook.log
+storybook-static
+
+# Avatar caricati dagli utenti
+/public/uploads/
+
+# Worktree temporanei degli agenti (Claude Code)
+/.claude/worktrees/
+
+# Estrazione CSV del gestionale precedente "Nuova Frontiera": questi 5 CSV
+# contengono dati personali reali (codice fiscale, password hash, email) e
+# non devono mai essere committati. Le tabelle di catalogo nella stessa
+# cartella non sono PII e vanno committate normalmente.
+/gdxhisfn_NuovaFrontiera.csv/gdxhisfn_NuovaFrontiera_table_utenti.csv
+/gdxhisfn_NuovaFrontiera.csv/gdxhisfn_NuovaFrontiera_table_personaggi.csv
+/gdxhisfn_NuovaFrontiera.csv/gdxhisfn_NuovaFrontiera_table_png.csv
+/gdxhisfn_NuovaFrontiera.csv/gdxhisfn_NuovaFrontiera_table_eventi_iscrizioni.csv
+/gdxhisfn_NuovaFrontiera.csv/gdxhisfn_NuovaFrontiera_table_downtime.csv
+
+# Regolamento PDF della stessa estrazione: asset binario, non codice/dati
+# di catalogo, non va committato.
+/gdxhisfn_NuovaFrontiera.csv/01.Regolamento.pdf

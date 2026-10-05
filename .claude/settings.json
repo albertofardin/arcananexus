@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(bunx prisma migrate reset:*)",
+      "Bash(npx prisma migrate reset:*)",
+      "Bash(prisma migrate reset:*)",
+      "Bash(bun prisma migrate reset:*)",
+      "Bash(trello cards create:*)",
+      "Bash(trello cards update:*)",
+      "Bash(trello cards delete:*)",
+      "Bash(trello cards archive:*)",
+      "Bash(trello cards move:*)",
+      "Bash(trello lists create:*)",
+      "Bash(trello lists update:*)",
+      "Bash(trello lists archive:*)",
+      "Bash(trello lists move:*)",
+      "Bash(trello comments add:*)",
+      "Bash(trello comments update:*)",
+      "Bash(trello comments delete:*)",
+      "Bash(trello checklists create:*)",
+      "Bash(trello checklists delete:*)",
+      "Bash(trello checklists items:*)",
+      "Bash(trello labels create:*)",
+      "Bash(trello labels add:*)",
+      "Bash(trello labels remove:*)",
+      "Bash(trello members add:*)",
+      "Bash(trello members remove:*)",
+      "Bash(trello attachments add-file:*)",
+      "Bash(trello attachments add-url:*)",
+      "Bash(trello attachments delete:*)",
+      "Bash(trello custom-fields create:*)",
+      "Bash(trello custom-fields update:*)",
+      "Bash(trello custom-fields delete:*)",
+      "Bash(trello custom-fields items:*)",
+      "Bash(trello custom-fields options:*)",
+      "Bash(trello boards create:*)"
+    ],
+    "defaultMode": "auto"
+  },
+  "enabledMcpjsonServers": ["neon", "brevo"],
+  "extraKnownMarketplaces": {
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "ponytail@ponytail": true
+  }
+}

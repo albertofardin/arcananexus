@@ -1,0 +1,6 @@
+"id","nome","descrizione","descrizione_completa","note_master","status"
+"1","Thalna","Divinità della Nascita.","I suoi domini sono Vita, Famiglia e Amore. La sua stagione è l'Estate e la festività cade durante l'Equinozio di Primavera.",,"visibile"
+"2","Mantus","Divinità della Morte.","I suoi domini sono Morte, Equilibrio, Giustizia. La sua stagione è l'Autunno e la festività cade durante l'Equinozio di Autunno.",,"visibile"
+"3","Lumis","Divinità dell'Anima.","I suoi domini sono Arte, Ozio, Passione carnale. La sua stagione è l'Inverno e la festività cade durante il Solstizio d'Inverno.",,"visibile"
+"4","Veive","Divinità del Corpo.","I suoi domini sono Miglioramento Personale, Lotta e Ingegno. La sua stagione è la Primavera e la festività cade durante il Solstizio d'Estate.",,"visibile"
+"5","Altro","Hai altre credenze personali, hai deciso di non affidarti a nessuna divinità o le ripudi apertamente.","<p>Altro</p>",,"visibile"

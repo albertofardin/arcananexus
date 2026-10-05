@@ -1,0 +1,5 @@
+# Ensure bun is on PATH (GUI git clients like Fork don't inherit the shell PATH)
+export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+bunx lint-staged
